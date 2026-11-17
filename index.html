@@ -1,0 +1,1335 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Take One Away</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Figtree:wght@400;500&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #dfe3dc;
+      --ink: #252a26;
+      --muted: #6c736c;
+      --wood: #e4c48f;
+      --wood-2: #d2ad72;
+      --wood-edge: #b08a4f;
+      --recess: #1c2230;
+      --word: #f5d88e;
+      --table: #b9bfb5;
+      --danger: #b4513b;
+      color-scheme: light;
+      box-sizing: border-box;
+      /* Block size: overwritten by JS to fit the screen */
+      --L: 150px;
+      --W: 50px;
+      --H: 31px;
+      --P: 51px;
+      --TH: 372px;
+    }
+
+    @media (prefers-color-scheme:dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #191c1a;
+        --ink: #e8ebe5;
+        --muted: #8f978e;
+        --wood: #c9a46b;
+        --wood-2: #b38c53;
+        --wood-edge: #8c6a38;
+        --recess: #06080d;
+        --word: #ffdf8f;
+        --table: #303530;
+        --danger: #e07a62;
+        color-scheme: dark;
+      }
+    }
+
+    :root[data-theme="dark"] {
+      --bg: #191c1a;
+      --ink: #e8ebe5;
+      --muted: #8f978e;
+      --wood: #c9a46b;
+      --wood-2: #b38c53;
+      --wood-edge: #8c6a38;
+      --recess: #06080d;
+      --word: #ffdf8f;
+      --table: #303530;
+      --danger: #e07a62;
+      color-scheme: dark;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: inherit
+    }
+
+    html,
+    body {
+      height: 100%;
+      margin: 0
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+      overflow: hidden;
+    }
+
+    /* ---------- header (laid over the stage so the tower gets the full height) ---------- */
+    .top {
+      position: fixed;
+      left: 0;
+      right: 0;
+      top: env(safe-area-inset-top, 0px);
+      z-index: 4;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 16px 16px 0;
+      pointer-events: none;
+    }
+
+    .top>* {
+      pointer-events: auto
+    }
+
+    .hint {
+      margin: 0;
+      font-size: 15px;
+      color: var(--muted);
+      letter-spacing: .01em;
+      transition: opacity .6s;
+    }
+
+    .hint small {
+      display: block;
+      font-size: 13px;
+      margin-top: 4px;
+      max-width: 17em;
+      transition: opacity .6s
+    }
+
+    .hint.gone,
+    .hint small.gone {
+      opacity: 0
+    }
+
+    .steady {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--muted);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .steady[hidden] {
+      display: none
+    }
+
+    .steady b {
+      font-weight: 500;
+      flex-basis: 100%;
+      margin-bottom: 1px
+    }
+
+    .steady i {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--wood-2);
+      transition: background .4s, box-shadow .4s, transform .4s;
+    }
+
+    .steady i.spent {
+      background: transparent;
+      box-shadow: inset 0 0 0 1px var(--muted);
+      transform: scale(.8)
+    }
+
+    .steady.low i:not(.spent) {
+      background: var(--danger)
+    }
+
+    .modes {
+      display: inline-flex;
+      flex-shrink: 0;
+      padding: 3px;
+      gap: 2px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--ink) 7%, transparent);
+    }
+
+    .modes button {
+      font: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+      background: transparent;
+      border: 0;
+      border-radius: 999px;
+      padding: 6px 13px;
+      cursor: pointer;
+      transition: background .25s, color .25s;
+    }
+
+    .modes button[aria-pressed="true"] {
+      background: var(--bg);
+      color: var(--ink);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, .14)
+    }
+
+    .modes button:focus-visible {
+      outline: 2px solid var(--ink);
+      outline-offset: 1px
+    }
+
+    /* ---------- 3D scene ---------- */
+    .viewport {
+      position: fixed;
+      inset: 0;
+      perspective: 900px;
+      perspective-origin: 50% 50%;
+      overflow: hidden;
+      touch-action: none;
+      cursor: grab;
+      user-select: none;
+      -webkit-user-select: none;
+      /* a little darkness at the edges so the tower looms */
+      background: radial-gradient(120% 90% at 50% 45%, transparent 55%, color-mix(in srgb, var(--recess) 14%, transparent) 100%);
+    }
+
+    .viewport.dragging {
+      cursor: grabbing
+    }
+
+    .scene,
+    .tilt,
+    .sway,
+    .wob,
+    .block,
+    .slot {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 0;
+      height: 0;
+      transform-style: preserve-3d;
+    }
+
+    .scene {
+      left: 50%;
+      top: 50%
+    }
+
+    /* Lean: grows a little with each pull */
+    .tilt {
+      transform: rotateZ(var(--tz, 0deg)) rotateX(var(--tx, 0deg));
+      transition: transform .5s cubic-bezier(.3, 1.15, .5, 1);
+    }
+
+    /* Idle sway: barely there at first, worse as the tower is hollowed out */
+    .sway {
+      --sw: .12deg;
+      animation: sway 5.5s ease-in-out infinite;
+    }
+
+    @keyframes sway {
+
+      0%,
+      100% {
+        transform: rotateZ(calc(var(--sw) * -1)) rotateX(calc(var(--sw) * .4))
+      }
+
+      50% {
+        transform: rotateZ(var(--sw)) rotateX(calc(var(--sw) * -.4))
+      }
+    }
+
+    .wob.wobble {
+      animation: wobble .45s ease-out
+    }
+
+    .wob.shudder {
+      animation: shudder .55s ease-out
+    }
+
+    @keyframes wobble {
+      0% {
+        transform: none
+      }
+
+      30% {
+        transform: rotateZ(.6deg) rotateX(-.35deg)
+      }
+
+      65% {
+        transform: rotateZ(-.3deg) rotateX(.18deg)
+      }
+
+      100% {
+        transform: none
+      }
+    }
+
+    @keyframes shudder {
+      0% {
+        transform: none
+      }
+
+      20% {
+        transform: rotateZ(1.3deg)
+      }
+
+      45% {
+        transform: rotateZ(-.9deg)
+      }
+
+      70% {
+        transform: rotateZ(.4deg)
+      }
+
+      100% {
+        transform: none
+      }
+    }
+
+    .table {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: calc(var(--L) * 2.3);
+      height: calc(var(--L) * 2.3);
+      margin: calc(var(--L) * -1.15) 0 0 calc(var(--L) * -1.15);
+      border-radius: 50%;
+      background:
+        radial-gradient(circle, color-mix(in srgb, var(--recess) 30%, transparent) 0 18%, color-mix(in srgb, var(--recess) 10%, transparent) 30%, transparent 46%),
+        var(--table);
+      transform: rotateX(90deg);
+      pointer-events: none;
+    }
+
+    .block {
+      cursor: pointer;
+      transform: translate3d(var(--x), var(--y), var(--z)) rotateY(var(--a)) translateX(var(--o, 0px)) translateX(var(--s, 0px)) rotateX(var(--rx, 0deg)) rotateZ(var(--rz, 0deg));
+      transition: transform .55s cubic-bezier(.5, 0, .75, 0);
+    }
+
+    .block:hover {
+      --s: calc(var(--dir, 1) * 5px)
+    }
+
+    .block:focus-visible {
+      outline: none
+    }
+
+    .block:focus-visible .face {
+      outline: 2px solid var(--ink);
+      outline-offset: -2px
+    }
+
+    .face {
+      position: absolute;
+      left: 0;
+      top: 0;
+      backface-visibility: hidden;
+      background-color: var(--wood);
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--wood-edge) 55%, transparent);
+      transition: opacity .4s .25s, filter .2s;
+    }
+
+    .block:hover .face {
+      filter: brightness(1.07)
+    }
+
+    .f-front,
+    .f-back {
+      width: var(--L);
+      height: var(--H);
+      margin: calc(var(--H) / -2) 0 0 calc(var(--L) / -2);
+      background-image: repeating-linear-gradient(90deg,
+          transparent 0 11px, color-mix(in srgb, var(--wood-2) 60%, transparent) 11px 12px,
+          transparent 12px 23px, color-mix(in srgb, var(--wood-2) 35%, transparent) 23px 25px);
+    }
+
+    .f-front {
+      transform: translateZ(calc(var(--W) / 2))
+    }
+
+    .f-back {
+      transform: rotateY(180deg) translateZ(calc(var(--W) / 2));
+      filter: brightness(.88)
+    }
+
+    .f-left,
+    .f-right {
+      width: var(--W);
+      height: var(--H);
+      margin: calc(var(--H) / -2) 0 0 calc(var(--W) / -2);
+      background-color: var(--wood-2);
+      background-image: repeating-radial-gradient(circle at 30% 120%,
+          transparent 0 5px, color-mix(in srgb, var(--wood-edge) 45%, transparent) 5px 6px);
+    }
+
+    .f-right {
+      transform: rotateY(90deg) translateZ(calc(var(--L) / 2))
+    }
+
+    .f-left {
+      transform: rotateY(-90deg) translateZ(calc(var(--L) / 2))
+    }
+
+    .f-top,
+    .f-bottom {
+      width: var(--L);
+      height: var(--W);
+      margin: calc(var(--W) / -2) 0 0 calc(var(--L) / -2);
+    }
+
+    .f-top {
+      transform: rotateX(90deg) translateZ(calc(var(--H) / 2));
+      filter: brightness(1.06)
+    }
+
+    .f-bottom {
+      transform: rotateX(-90deg) translateZ(calc(var(--H) / 2));
+      filter: brightness(.8)
+    }
+
+    .block.pulled {
+      pointer-events: none
+    }
+
+    .block.pulled .face {
+      opacity: 0
+    }
+
+    .block.falling .face {
+      opacity: 0;
+      transition: opacity .4s var(--fd, .9s)
+    }
+
+    /* Measuring the tower to fit the screen: no tweening */
+    .viewport.measuring .block,
+    .viewport.measuring .tilt {
+      transition: none !important
+    }
+
+    .viewport.measuring .sway,
+    .viewport.measuring .wob {
+      animation: none !important
+    }
+
+    /* Where a block was: an invisible anchor the word is pinned to */
+    .slot {
+      pointer-events: none;
+      transform: translate3d(var(--x), var(--y), var(--z))
+    }
+
+    /* The hidden words: flat text on a layer above the tower */
+    .words {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 2
+    }
+
+    .word {
+      position: absolute;
+      left: 0;
+      top: 0;
+      will-change: transform;
+      font-family: "Instrument Serif", Georgia, "Times New Roman", serif;
+      font-style: italic;
+      font-size: calc(var(--H) * .72);
+      line-height: 1;
+      white-space: nowrap;
+      color: var(--word);
+      text-shadow: 0 0 3px var(--recess), 0 0 10px var(--recess), 0 0 18px color-mix(in srgb, var(--recess) 70%, transparent);
+    }
+
+    .word span {
+      display: block;
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(.85);
+      transition: opacity .6s .1s, transform .6s .1s
+    }
+
+    .word.open span {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1)
+    }
+
+    .word.open.hidden span {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(.92);
+      transition-delay: 0s;
+      transition-duration: .25s
+    }
+
+    /* ---------- text below ---------- */
+    .bottom {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: env(safe-area-inset-bottom, 0px);
+      z-index: 3;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      pointer-events: none;
+      transition: background .6s;
+    }
+
+    /* Round over with the tower still up: fade its base so the sentence reads cleanly */
+    .bottom.ending {
+      padding-top: 48px;
+      background: linear-gradient(to bottom, transparent, var(--bg) 46px)
+    }
+
+    .found {
+      min-height: 2.7em;
+      margin: 0 16px 14px;
+      text-align: center;
+      max-width: min(30em, calc(100vw - 32px));
+      font-family: "Instrument Serif", Georgia, serif;
+      font-size: clamp(20px, 5.2vw, 27px);
+      line-height: 1.3;
+      opacity: 0;
+      transition: opacity .6s;
+    }
+
+    .found.show {
+      opacity: 1
+    }
+
+    .found .w {
+      display: inline-block;
+      margin: 0 .14em
+    }
+
+    .found .blank {
+      color: var(--muted);
+      letter-spacing: .05em
+    }
+
+    .found .missed {
+      color: var(--muted);
+      font-style: italic
+    }
+
+    .after {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      margin: 0 0 22px;
+      opacity: 0;
+      transition: opacity .6s;
+    }
+
+    .after.on {
+      display: flex
+    }
+
+    .after.show {
+      opacity: 1
+    }
+
+    .after.show .btn {
+      pointer-events: auto
+    }
+
+    .caption {
+      font-size: 15px;
+      color: var(--muted);
+      margin: 0;
+      text-align: center;
+      padding: 0 16px;
+    }
+
+    .endbtns {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      padding: 0 16px
+    }
+
+    .btn {
+      font: inherit;
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--bg);
+      background: var(--ink);
+      border: 0;
+      border-radius: 999px;
+      padding: 10px 22px;
+      cursor: pointer;
+      transition: opacity .25s;
+    }
+
+    .btn.ghost {
+      color: var(--ink);
+      background: transparent;
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 28%, transparent)
+    }
+
+    .btn:disabled {
+      opacity: .35;
+      cursor: default
+    }
+
+    .btn:focus-visible {
+      outline: 2px solid var(--ink);
+      outline-offset: 3px
+    }
+
+    /* ---------- friend setup ---------- */
+    .setup {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      background: color-mix(in srgb, var(--bg) 70%, transparent);
+      -webkit-backdrop-filter: blur(8px);
+      backdrop-filter: blur(8px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .35s;
+    }
+
+    .setup.show {
+      opacity: 1;
+      pointer-events: auto
+    }
+
+    .card {
+      width: min(460px, 100%);
+      background: var(--bg);
+      border-radius: 20px;
+      padding: 26px 24px 20px;
+      box-shadow: 0 24px 70px rgba(0, 0, 0, .2), 0 0 0 1px color-mix(in srgb, var(--ink) 9%, transparent);
+      transform: translateY(8px);
+      transition: transform .35s;
+    }
+
+    .setup.show .card {
+      transform: none
+    }
+
+    .card h2 {
+      font-family: "Instrument Serif", Georgia, serif;
+      font-weight: 400;
+      font-size: 34px;
+      line-height: 1.05;
+      margin: 0 0 8px
+    }
+
+    .card p {
+      margin: 0 0 16px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.45
+    }
+
+    .card textarea {
+      display: block;
+      width: 100%;
+      min-height: 112px;
+      resize: vertical;
+      font-family: "Instrument Serif", Georgia, serif;
+      font-style: italic;
+      font-size: 21px;
+      line-height: 1.35;
+      color: var(--ink);
+      background: color-mix(in srgb, var(--ink) 5%, transparent);
+      border: 0;
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+
+    .card textarea::placeholder {
+      color: var(--muted);
+      opacity: .7
+    }
+
+    .card textarea:focus {
+      outline: 2px solid var(--wood-edge);
+      outline-offset: 0
+    }
+
+    .count {
+      font-size: 13px;
+      color: var(--muted);
+      margin: 8px 2px 18px;
+      font-variant-numeric: tabular-nums
+    }
+
+    .count.ok {
+      color: var(--ink)
+    }
+
+    .count.over {
+      color: var(--danger)
+    }
+
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap
+    }
+
+    .share {
+      margin-top: 14px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--muted)
+    }
+
+    .linkbtn {
+      font: inherit;
+      color: var(--ink);
+      background: none;
+      border: 0;
+      padding: 0;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      cursor: pointer
+    }
+
+    .linkbtn:disabled {
+      color: var(--muted);
+      text-decoration: none;
+      cursor: default
+    }
+
+    @media (prefers-reduced-motion:reduce) {
+
+      .wob.wobble,
+      .wob.shudder,
+      .sway {
+        animation: none
+      }
+
+      .block,
+      .tilt {
+        transition-duration: .01s !important
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="viewport" id="viewport" aria-label="A tower of wooden blocks. Drag or use the arrow keys to turn it.">
+    <div class="scene" id="scene">
+      <div class="table"></div>
+      <div class="tilt" id="tilt">
+        <div class="sway" id="sway">
+          <div class="wob" id="wob"></div>
+        </div>
+      </div>
+    </div>
+    <div class="words" id="words"></div>
+  </main>
+
+  <header class="top" id="top">
+    <div>
+      <p class="hint" id="hint"><span id="hintMain">Take one away.</span><small id="dragHint">Drag to turn the
+          tower.</small></p>
+      <div class="steady" id="steady" hidden aria-live="polite"></div>
+    </div>
+    <div class="modes" role="group" aria-label="Mode">
+      <button id="modeSolo" aria-pressed="true">Alone</button>
+      <button id="modeFriend" aria-pressed="false">With a friend</button>
+    </div>
+  </header>
+
+  <div class="bottom">
+    <div class="found" id="found" aria-live="polite"></div>
+    <div class="after" id="after">
+      <p class="caption" id="caption" aria-live="polite"></p>
+      <div class="endbtns" id="endbtns"></div>
+    </div>
+  </div>
+
+  <div class="setup" id="setup" aria-hidden="true">
+    <form class="card" id="setupForm" role="dialog" aria-modal="true" aria-labelledby="setupTitle">
+      <h2 id="setupTitle">Hide a sentence</h2>
+      <p>Each word goes inside a block. Your friend has to pull the right ones out to read it, without bringing the
+        tower down.</p>
+      <textarea id="sentence" placeholder="Up to ten words…" aria-describedby="count"></textarea>
+      <div class="count" id="count">0 of 10 words</div>
+      <div class="actions">
+        <button type="button" class="btn ghost" id="setupCancel">Back</button>
+        <button type="submit" class="btn" id="setupGo" disabled>Build the tower</button>
+      </div>
+      <div class="share">Not in the same room? <button type="button" class="linkbtn" id="copyLink" disabled>Copy a
+          link</button></div>
+    </form>
+  </div>
+
+  <script>
+    // ---- Modes ----
+    // Alone: one fixed sentence, a tower that can't really be beaten.
+    // With a friend: someone hides their own sentence; it can be won by reading the tower.
+    const SOLO_WORDS = ["the", "more", "you", "take", "away,", "the", "more", "you", "see"];
+    const SOLO_ROWS = 15;
+    const MIN_FRIEND_WORDS = 3, MAX_FRIEND_WORDS = 10;
+
+    // ---- Tuning (alone) ----
+    // The tower can't fall until this many words have been found.
+    // Before then, a pull that would topple it is refused (the block sticks).
+    const MIN_WORDS_BEFORE_FALL = 1;
+    // After that, each pull past RISK_AFTER adds RISK_STEP chance of a collapse.
+    const RISK_AFTER = 15;
+    const RISK_STEP = 0.04;
+    // Lean per pull (degrees) and the most it can lean.
+    const TILT_STEP = 0.4, TILT_MAX = 2.2;
+
+    // ---- Tuning (with a friend) ----
+    // Blocks hiding a word sit slightly proud of the tower, like a loose block in the real game.
+    const LOOSE_OFFSET = 0.06;          // fraction of a block's length
+    // Pulls that find nothing shake the tower. Run out of steadiness and it falls.
+    const steadinessFor = n => Math.max(4, Math.round(n * 0.5));
+
+    const $ = id => document.getElementById(id);
+    const viewport = $("viewport"), sceneEl = $("scene"), tiltEl = $("tilt"), swayEl = $("sway"), wobEl = $("wob");
+    const wordsEl = $("words"), foundEl = $("found"), captionEl = $("caption"), afterEl = $("after"), endEl = $("endbtns");
+    const hintEl = $("hint"), hintMainEl = $("hintMain"), dragHintEl = $("dragHint"), steadyEl = $("steady"), topEl = $("top");
+    const setupEl = $("setup"), sentenceEl = $("sentence"), countEl = $("count"), goBtn = $("setupGo"), copyBtn = $("copyLink");
+    const soloBtn = $("modeSolo"), friendBtn = $("modeFriend");
+
+    let mode = "solo", WORDS = SOLO_WORDS, ROWS = SOLO_ROWS, fromLink = false;
+    let cells, found, removedCount, tiltZ, tiltX, over, misses, allowed;
+    let yaw = -28, pitch = -8, geo = null;
+    const PERSPECTIVE = 900; // must match .viewport perspective
+
+    function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[a[i], a[j]] = [a[j], a[i]]; } return a; }
+    const esc = s => s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    const getL = () => geo ? geo.L : 150;
+
+    // ---- Size the tower to the screen ----
+    // Make it as big as the space between the header and the found-words line allows,
+    // measured from the actual projected blocks so perspective is accounted for.
+    function applySize(L, sceneTop, room) {
+      const W = Math.round(L / 3 - 1), H = Math.round(L * 0.27);
+      const r = document.documentElement.style;
+      r.setProperty("--L", L + "px"); r.setProperty("--W", W + "px");
+      r.setProperty("--H", H + "px"); r.setProperty("--P", (W + 1) + "px");
+      r.setProperty("--TH", (H * ROWS) + "px");
+      // Eye a little below the tower's middle, so it rises over you
+      const eye = Math.round(sceneTop + room * 0.2);
+      sceneEl.style.top = Math.round(sceneTop) + "px";
+      viewport.style.perspectiveOrigin = `50% ${eye}px`;
+      geo = { L, W, H, P: W + 1, TH: H * ROWS, camY: eye - Math.round(sceneTop) };
+    }
+    function towerBounds() {
+      let t = Infinity, b = -Infinity, l = Infinity, r = -Infinity, any = false;
+      for (const f of wobEl.querySelectorAll(".block:not(.pulled):not(.falling) .face")) {
+        const q = f.getBoundingClientRect();
+        if (!q.width && !q.height) continue;
+        any = true;
+        t = Math.min(t, q.top); b = Math.max(b, q.bottom); l = Math.min(l, q.left); r = Math.max(r, q.right);
+      }
+      return any ? { t, b, h: b - t, w: r - l } : null;
+    }
+    function sizeTower() {
+      const topLimit = topEl.getBoundingClientRect().bottom + 14;
+      const reserve = Math.max(foundEl.offsetHeight + 24, 84);
+      const bottomLimit = innerHeight - reserve;
+      const room = Math.max(220, bottomLimit - topLimit);
+      const mid = topLimit + room / 2;
+      let L = getL(), sceneTop = geo ? parseFloat(sceneEl.style.top) || mid : mid;
+      viewport.classList.add("measuring");
+      for (let i = 0; i < 4; i++) {
+        applySize(L, sceneTop, room);
+        const bx = towerBounds();
+        if (!bx) break;
+        const k = Math.min(room / bx.h, (innerWidth * 0.62) / bx.w);
+        L = Math.round(Math.max(40, Math.min(260, L * k)));
+        sceneTop += mid - (bx.t + bx.b) / 2;
+      }
+      applySize(L, sceneTop, room);
+      void viewport.offsetWidth;
+      viewport.classList.remove("measuring");
+      if (cells) updateWordVisibility();
+    }
+
+    // ---- Camera ----
+    function applyCamera() {
+      sceneEl.style.transform =
+        `rotateX(${pitch}deg) rotateY(${yaw}deg) translateY(calc(var(--TH) / 2))`;
+      if (cells) {
+        cells.forEach(d => d.block.style.setProperty("--dir", slideDir(d)));
+        updateWordVisibility();
+      }
+    }
+
+    // ---- Can the viewer see into a hole? ----
+    function boxOf(d) {
+      const o = d.c - 1, g = geo;
+      return {
+        cx: d.along === "z" ? o * g.P : 0,
+        cy: -g.H * (ROWS - 1 - d.r + 0.5),
+        cz: d.along === "x" ? o * g.P : 0,
+        hx: (d.along === "x" ? g.L : g.W) / 2,
+        hy: g.H / 2,
+        hz: (d.along === "z" ? g.L : g.W) / 2,
+      };
+    }
+    function segmentHitsBox(a, b, bx) {
+      let t0 = 0, t1 = 1;
+      for (const [k, c, h] of [["x", bx.cx, bx.hx - .5], ["y", bx.cy, bx.hy - .5], ["z", bx.cz, bx.hz - .5]]) {
+        const dv = b[k] - a[k];
+        if (Math.abs(dv) < 1e-9) { if (a[k] < c - h || a[k] > c + h) return false; continue; }
+        let u = (c - h - a[k]) / dv, v = (c + h - a[k]) / dv;
+        if (u > v) [u, v] = [v, u];
+        t0 = Math.max(t0, u); t1 = Math.min(t1, v);
+        if (t0 > t1) return false;
+      }
+      return true;
+    }
+    function updateWordVisibility() {
+      if (!cells || !geo) return;
+      const m = new DOMMatrix().rotateSelf(pitch, 0, 0).rotateSelf(0, yaw, 0).translateSelf(0, geo.TH / 2, 0);
+      const cam = m.inverse().transformPoint(new DOMPoint(0, geo.camY, PERSPECTIVE));
+      const standing = cells.filter(x => !x.removed).map(boxOf);
+      for (const d of cells) {
+        if (!d.label) continue;
+        if (over) { d.label.classList.remove("hidden"); continue; }
+        const bx = boxOf(d);
+        const axis = d.along === "x" ? "x" : "z", half = d.along === "x" ? bx.hx : bx.hz;
+        const seen = [-0.8, 0, 0.8].some(k => {
+          const t = { x: bx.cx, y: bx.cy, z: bx.cz };
+          t[axis] += k * half;
+          return !standing.some(s => segmentHitsBox(cam, t, s));
+        });
+        d.label.classList.toggle("hidden", !seen);
+      }
+    }
+    function slideDir(d) {
+      const a = (d.along === "z" ? 90 : 0) + yaw;
+      return -Math.sin(a * Math.PI / 180) >= 0 ? 1 : -1;
+    }
+
+    // ---- Where the words go ----
+    function placeWords() {
+      if (mode === "solo") {
+        // Anywhere below the top two rows, several per layer if luck says so
+        const candidates = [];
+        for (let r = 2; r < ROWS; r++) for (let c = 0; c < 3; c++) candidates.push(r * 3 + c);
+        return shuffle(candidates).slice(0, WORDS.length);
+      }
+      // With a friend: at most one word per layer, so every word can come out
+      // without leaving a layer that topples. Order is scrambled through the tower.
+      const rows = [];
+      for (let r = 2; r < ROWS; r++) rows.push(r);
+      return shuffle(rows).slice(0, WORDS.length).map(r => r * 3 + Math.floor(Math.random() * 3));
+    }
+
+    // ---- Build ----
+    function face(cls) { const f = document.createElement("div"); f.className = "face " + cls; return f; }
+
+    function build() {
+      ROWS = mode === "solo" ? SOLO_ROWS : Math.max(SOLO_ROWS, WORDS.length + 3);
+      wobEl.innerHTML = ""; wordsEl.innerHTML = "";
+      wobEl.classList.remove("wobble", "shudder");
+      cells = []; found = WORDS.map(() => false); removedCount = 0; tiltZ = 0; tiltX = 0; over = false;
+      misses = 0; allowed = mode === "friend" ? steadinessFor(WORDS.length) : 0;
+      setTilt(); setSway();
+      const spots = placeWords();
+
+      for (let r = 0; r < ROWS; r++) {
+        const level = ROWS - 1 - r;                  // 0 = bottom layer
+        const along = r % 2 ? "z" : "x";             // layers alternate direction
+        for (let c = 0; c < 3; c++) {
+          const idx = r * 3 + c;
+          const wordIndex = spots.indexOf(idx);
+          const pos = {
+            x: along === "z" ? `calc(var(--P) * ${c - 1})` : "0px",
+            y: `calc(var(--H) * ${-(level + 0.5)})`,
+            z: along === "x" ? `calc(var(--P) * ${c - 1})` : "0px",
+            a: along === "z" ? "90deg" : "0deg",
+          };
+
+          const slot = document.createElement("div");
+          slot.className = "slot";
+          let label = null;
+          if (wordIndex >= 0) {
+            label = document.createElement("div"); label.className = "word";
+            const span = document.createElement("span"); span.textContent = WORDS[wordIndex];
+            label.appendChild(span); wordsEl.appendChild(label);
+          }
+
+          const block = document.createElement("div");
+          block.className = "block";
+          block.tabIndex = 0;
+          block.setAttribute("role", "button");
+          block.setAttribute("aria-label", `Wooden block, layer ${level + 1}`);
+          ["f-front", "f-back", "f-left", "f-right", "f-top", "f-bottom"].forEach(c => block.appendChild(face(c)));
+
+          for (const el of [slot, block]) {
+            el.style.setProperty("--x", pos.x); el.style.setProperty("--y", pos.y);
+            el.style.setProperty("--z", pos.z); el.style.setProperty("--a", pos.a);
+          }
+          // The tell: a word block is loose, and sticks out a little at one end
+          if (mode === "friend" && wordIndex >= 0) {
+            block.style.setProperty("--o", `calc(var(--L) * ${(Math.random() < .5 ? -1 : 1) * LOOSE_OFFSET})`);
+          }
+          wobEl.append(slot, block);
+
+          const data = { r, c, along, pos, block, slot, label, wordIndex, removed: false, busy: false };
+          block._cell = data;
+          block.addEventListener("keydown", e => {
+            if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pull(data); }
+          });
+          cells.push(data);
+        }
+      }
+
+      // Header copy
+      if (mode === "solo") {
+        hintMainEl.textContent = "Take one away.";
+        dragHintEl.textContent = "Drag to turn the tower.";
+      } else {
+        hintMainEl.textContent = fromLink
+          ? `A friend hid ${WORDS.length} words in here.`
+          : `Find all ${WORDS.length} words.`;
+        dragHintEl.textContent = "Loose blocks hide words. Every empty pull shakes it.";
+      }
+      hintEl.classList.remove("gone"); dragHintEl.classList.remove("gone");
+      steadyEl.hidden = mode !== "friend";
+      renderSteady();
+
+      foundEl.classList.remove("show"); foundEl.innerHTML = "";
+      if (mode === "friend") { renderFound(); foundEl.classList.add("show"); }
+      hideEnd();
+      sizeTower();
+      applyCamera();
+    }
+
+    function setTilt() {
+      tiltEl.style.setProperty("--tz", tiltZ.toFixed(2) + "deg");
+      tiltEl.style.setProperty("--tx", tiltX.toFixed(2) + "deg");
+    }
+    function setSway() {
+      const frac = cells && cells.length ? removedCount / cells.length : 0;
+      swayEl.style.setProperty("--sw", Math.min(0.75, 0.12 + frac * 1.6).toFixed(3) + "deg");
+    }
+    function replay(el, cls) { el.classList.remove("wobble", "shudder"); void el.offsetWidth; el.classList.add(cls); }
+
+    function renderFound(revealAll) {
+      foundEl.innerHTML = WORDS.map((w, i) => found[i]
+        ? `<span class="w">${esc(w)}</span>`
+        : revealAll
+          ? `<span class="w missed">${esc(w)}</span>`
+          : `<span class="w blank">____</span>`).join("");
+    }
+    const foundCount = () => found.filter(Boolean).length;
+
+    function renderSteady() {
+      if (mode !== "friend") return;
+      const left = allowed - misses;
+      steadyEl.innerHTML = `<b>Steadiness</b>` +
+        Array.from({ length: allowed }, (_, i) => `<i class="${i < left ? "" : "spent"}"></i>`).join("");
+      steadyEl.classList.toggle("low", left <= 1);
+      steadyEl.setAttribute("aria-label", `Steadiness: ${left} of ${allowed} left`);
+    }
+
+    // ---- End of a round ----
+    function showEnd(text, buttons) {
+      captionEl.textContent = text;
+      endEl.innerHTML = "";
+      for (const [label, fn, ghost] of buttons) {
+        const b = document.createElement("button");
+        b.className = "btn" + (ghost ? " ghost" : "");
+        b.textContent = label;
+        b.addEventListener("click", fn);
+        endEl.appendChild(b);
+      }
+      afterEl.classList.add("on");
+      document.querySelector(".bottom").classList.toggle("ending", !over);
+      requestAnimationFrame(() => afterEl.classList.add("show"));
+    }
+    function hideEnd() { afterEl.classList.remove("show", "on"); endEl.innerHTML = ""; document.querySelector(".bottom").classList.remove("ending"); }
+
+    function endButtonsFriend(lost) {
+      const list = [];
+      if (lost && foundCount() < WORDS.length) list.push(["Show the sentence", e => { renderFound(true); e.currentTarget.remove(); }, true]);
+      list.push([lost ? "Try again" : "Play again", build]);
+      list.push(["Hide a new one", openSetup, true]);
+      return list;
+    }
+
+    // ---- Rules ----
+    // A layer is unstable when it's empty, or only an edge block is left in it.
+    function wouldTopple(d) {
+      const left = cells.filter(x => x.r === d.r && !x.removed && x !== d);
+      return left.length === 0 || (left.length === 1 && left[0].c !== 1);
+    }
+    function safeMoveExists(except) {
+      return cells.some(x => !x.removed && x !== except && !wouldTopple(x));
+    }
+
+    function refuse(d) {
+      d.busy = true;
+      d.block.style.transition = "transform .18s ease-out";
+      d.block.style.setProperty("--s", (slideDir(d) * getL() * 0.18) + "px");
+      replay(wobEl, "shudder");
+      setTimeout(() => {
+        d.block.style.transition = "transform .35s cubic-bezier(.3,1.4,.5,1)";
+        d.block.style.removeProperty("--s");
+        setTimeout(() => { d.block.style.transition = ""; d.busy = false; }, 360);
+      }, 200);
+    }
+
+    function pull(d) {
+      if (over || d.removed || d.busy || setupEl.classList.contains("show")) return;
+      const topples = wouldTopple(d);
+
+      // Alone: grace period, a toppling pull is refused until a word is found
+      if (mode === "solo" && topples && foundCount() < MIN_WORDS_BEFORE_FALL && safeMoveExists(d)) {
+        refuse(d);
+        return;
+      }
+
+      d.removed = true; removedCount++;
+      hintEl.classList.add("gone");
+      d.block.style.setProperty("--s", (slideDir(d) * getL() * 1.4) + "px");
+      d.block.classList.add("pulled");
+      if (d.label) setTimeout(() => d.label.classList.add("open"), 180);
+
+      const hit = d.wordIndex >= 0;
+      if (hit) {
+        found[d.wordIndex] = true;
+        setTimeout(() => { renderFound(); foundEl.classList.add("show"); }, 380);
+      }
+
+      // Each removal shifts the tower a little; an empty pull in friend mode shakes it harder
+      const shake = mode === "friend" && !hit ? 1.8 : 1;
+      tiltZ = Math.max(-TILT_MAX, Math.min(TILT_MAX, tiltZ + (Math.random() - 0.45) * TILT_STEP * shake));
+      tiltX = Math.max(-TILT_MAX, Math.min(TILT_MAX, tiltX + (Math.random() - 0.5) * TILT_STEP * 0.6 * shake));
+      setTilt(); setSway();
+      replay(wobEl, mode === "friend" && !hit ? "shudder" : "wobble");
+      updateWordVisibility();
+
+      if (mode === "friend") {
+        if (!hit) { misses++; renderSteady(); }
+        // No dice here: it only falls if you break a layer or run out of steadiness
+        if (topples || misses >= allowed) {
+          setTimeout(collapse, 500);
+        } else if (found.every(Boolean)) {
+          setTimeout(() => showEnd(`You found every word, and the tower is still standing.`, endButtonsFriend(false)), 900);
+        }
+        return;
+      }
+
+      const canFall = foundCount() >= MIN_WORDS_BEFORE_FALL;
+      const risk = canFall && removedCount > RISK_AFTER ? (removedCount - RISK_AFTER) * RISK_STEP : 0;
+      if (topples || Math.random() < risk || !cells.some(x => !x.removed)) {
+        setTimeout(collapse, 500);
+      } else if (found.every(Boolean)) {
+        setTimeout(() => showEnd("You found all of it, and the tower is still standing.", [["Rebuild the tower", build]]), 900);
+      }
+    }
+
+    function collapse() {
+      over = true;
+      wobEl.classList.remove("wobble", "shudder");
+      tiltZ = (tiltZ >= 0 ? 1 : -1) * 9; tiltX *= 3; setTilt();
+      const drop = innerHeight * 1.15;
+      const pushX = tiltZ * 22;
+      const spread = getL() * 2.4;
+      cells.forEach(d => {
+        if (d.removed) return;
+        const delay = (ROWS - d.r) * 0.022 + Math.random() * 0.12;
+        const dx = (Math.random() - 0.5) * spread + pushX;
+        const dz = (Math.random() - 0.5) * spread;
+        const b = d.block;
+        b.style.transition = `transform 1.1s cubic-bezier(.55,0,.9,.4) ${delay}s`;
+        b.style.setProperty("--fd", (delay + 0.8) + "s");
+        b.style.setProperty("--x", `calc(${d.pos.x} + ${dx}px)`);
+        b.style.setProperty("--y", `calc(${d.pos.y} + ${drop}px)`);
+        b.style.setProperty("--z", `calc(${d.pos.z} + ${dz}px)`);
+        b.style.setProperty("--rx", ((Math.random() - 0.5) * 300) + "deg");
+        b.style.setProperty("--rz", ((Math.random() - 0.5) * 300) + "deg");
+        b.classList.add("falling");
+      });
+      updateWordVisibility();
+      setTimeout(() => {
+        renderFound(); foundEl.classList.add("show");
+        const n = foundCount();
+        if (mode === "friend") {
+          const why = misses >= allowed ? "Too many empty pulls." : "That layer couldn’t hold.";
+          showEnd(n === WORDS.length
+            ? `${why} The tower fell, but you’d already found every word.`
+            : `${why} The tower fell with ${WORDS.length - n} ${WORDS.length - n === 1 ? "word" : "words"} still inside.`,
+            endButtonsFriend(true));
+        } else {
+          showEnd(n === WORDS.length
+            ? "The tower fell, but you saw everything first."
+            : "The tower fell. What you didn’t take away, you’ll never see.",
+            [["Rebuild the tower", build]]);
+        }
+      }, 1300);
+    }
+
+    // ---- Modes and the friend setup ----
+    function setModeButtons() {
+      soloBtn.setAttribute("aria-pressed", mode === "solo");
+      friendBtn.setAttribute("aria-pressed", mode === "friend");
+    }
+    function parseWords(s) { return s.trim().split(/\s+/).filter(Boolean); }
+    function updateCount() {
+      const n = parseWords(sentenceEl.value).length;
+      const ok = n >= MIN_FRIEND_WORDS && n <= MAX_FRIEND_WORDS;
+      countEl.textContent = n > MAX_FRIEND_WORDS
+        ? `${n} words, ${MAX_FRIEND_WORDS} at most`
+        : n >= MIN_FRIEND_WORDS ? `${n} of ${MAX_FRIEND_WORDS} words. Good to go.` : `${n} of ${MAX_FRIEND_WORDS} words (at least ${MIN_FRIEND_WORDS})`;
+      countEl.classList.toggle("ok", ok);
+      countEl.classList.toggle("over", n > MAX_FRIEND_WORDS);
+      goBtn.disabled = !ok; copyBtn.disabled = !ok;
+      if (!copyBtn.dataset.busy) copyBtn.textContent = "Copy a link";
+    }
+    function openSetup() {
+      setupEl.classList.add("show"); setupEl.setAttribute("aria-hidden", "false");
+      sentenceEl.value = ""; updateCount();
+      setTimeout(() => sentenceEl.focus(), 60);
+    }
+    function closeSetup() {
+      setupEl.classList.remove("show"); setupEl.setAttribute("aria-hidden", "true");
+    }
+    function startFriend(words, viaLink) {
+      mode = "friend"; WORDS = words; fromLink = !!viaLink;
+      setModeButtons(); closeSetup(); build();
+    }
+    function startSolo() {
+      mode = "solo"; WORDS = SOLO_WORDS; fromLink = false;
+      if (location.hash) history.replaceState(null, "", location.pathname + location.search);
+      setModeButtons(); closeSetup(); build();
+    }
+
+    // Links carry the sentence in the address, lightly encoded so it isn't readable at a glance
+    function encode(s) {
+      let bin = ""; for (const b of new TextEncoder().encode(s)) bin += String.fromCharCode(b);
+      return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    }
+    function decode(s) {
+      const bin = atob(s.replace(/-/g, "+").replace(/_/g, "/"));
+      return new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
+    }
+    function readLink() {
+      const m = location.hash.match(/^#s=([\w-]+)$/);
+      if (!m) return null;
+      try {
+        const words = parseWords(decode(m[1]));
+        return words.length >= MIN_FRIEND_WORDS && words.length <= MAX_FRIEND_WORDS ? words : null;
+      } catch { return null; }
+    }
+
+    soloBtn.addEventListener("click", () => { if (mode !== "solo") startSolo(); });
+    friendBtn.addEventListener("click", openSetup);
+    $("setupCancel").addEventListener("click", closeSetup);
+    sentenceEl.addEventListener("input", updateCount);
+    sentenceEl.addEventListener("keydown", e => {
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (!goBtn.disabled) $("setupForm").requestSubmit(); }
+    });
+    setupEl.addEventListener("keydown", e => { if (e.key === "Escape") closeSetup(); });
+    setupEl.addEventListener("pointerdown", e => { if (e.target === setupEl) closeSetup(); });
+    $("setupForm").addEventListener("submit", e => {
+      e.preventDefault();
+      const words = parseWords(sentenceEl.value);
+      if (words.length < MIN_FRIEND_WORDS || words.length > MAX_FRIEND_WORDS) return;
+      if (location.hash) history.replaceState(null, "", location.pathname + location.search);
+      startFriend(words, false);
+    });
+    copyBtn.addEventListener("click", async () => {
+      const url = location.href.split("#")[0] + "#s=" + encode(parseWords(sentenceEl.value).join(" "));
+      copyBtn.dataset.busy = "1";
+      try { await navigator.clipboard.writeText(url); copyBtn.textContent = "Link copied"; }
+      catch { prompt("Copy this link:", url); }
+      setTimeout(() => { delete copyBtn.dataset.busy; copyBtn.textContent = "Copy a link"; }, 2000);
+    });
+
+    // ---- Drag to rotate, click to pull ----
+    let drag = null;
+    viewport.addEventListener("pointerdown", e => {
+      drag = { x: e.clientX, y: e.clientY, yaw, pitch, moved: false, id: e.pointerId };
+    });
+    viewport.addEventListener("pointermove", e => {
+      if (!drag || e.pointerId !== drag.id) return;
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      if (!drag.moved && Math.hypot(dx, dy) > 6) {
+        drag.moved = true;
+        viewport.setPointerCapture(e.pointerId);
+        viewport.classList.add("dragging");
+        if (mode === "solo") dragHintEl.classList.add("gone");
+      }
+      if (drag.moved) {
+        yaw = drag.yaw + dx * 0.45;
+        pitch = Math.max(-60, Math.min(-4, drag.pitch - dy * 0.3));
+        applyCamera();
+      }
+    });
+    function endDrag(e) {
+      if (!drag || e.pointerId !== drag.id) return;
+      const wasDrag = drag.moved;
+      drag = null;
+      viewport.classList.remove("dragging");
+      if (!wasDrag && e.type === "pointerup") {
+        const b = e.target.closest && e.target.closest(".block");
+        if (b && b._cell) pull(b._cell);
+      }
+    }
+    viewport.addEventListener("pointerup", endDrag);
+    viewport.addEventListener("pointercancel", endDrag);
+
+    document.addEventListener("keydown", e => {
+      if (setupEl.classList.contains("show") || e.target.closest("textarea, input")) return;
+      const k = { ArrowLeft: [-15, 0], ArrowRight: [15, 0], ArrowUp: [0, 6], ArrowDown: [0, -6] }[e.key];
+      if (!k) return;
+      e.preventDefault();
+      yaw += k[0]; pitch = Math.max(-60, Math.min(-4, pitch - k[1]));
+      if (mode === "solo") dragHintEl.classList.add("gone");
+      applyCamera();
+    });
+
+    let resizeTimer;
+    addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(sizeTower, 60); });
+
+    // Pin each revealed word to its hole's spot on screen (follows turning, wobble, sway and lean)
+    function pinWords() {
+      if (cells) {
+        const v = viewport.getBoundingClientRect();
+        for (const d of cells) {
+          if (!d.label || !d.removed) continue;
+          const p = d.slot.getBoundingClientRect();
+          d.label.style.transform = `translate(${(p.left - v.left).toFixed(1)}px, ${(p.top - v.top).toFixed(1)}px)`;
+        }
+      }
+      requestAnimationFrame(pinWords);
+    }
+    requestAnimationFrame(pinWords);
+
+    applyCamera();
+    const linked = readLink();
+    if (linked) startFriend(linked, true); else build();
+  </script>
+</body>
+
+</html>
